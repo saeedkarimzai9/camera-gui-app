@@ -1,8 +1,9 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 import cv2
 from PIL import Image, ImageTk
 import threading
+import time
 
 class CameraApp:
     def __init__(self, root):
@@ -17,6 +18,7 @@ class CameraApp:
         self.current_effect = "none"
         self.selected_camera = 0
         self.camera_name = "Camera 0"
+        self.testing_camera = False
         
         # Title
         title_label = tk.Label(root, text="📷 Camera Application", font=("Arial", 20, "bold"), bg="#f0f0f0")
@@ -33,8 +35,13 @@ class CameraApp:
             camera_options = [f"Camera {i}" for i in self.available_cameras]
             self.camera_var = tk.StringVar(value=camera_options[0])
             self.camera_dropdown = ttk.Combobox(camera_frame, textvariable=self.camera_var, 
-                                               values=camera_options, state="readonly", width=20, font=("Arial", 11))
+                                               values=camera_options, state="readonly", width=15, font=("Arial", 11))
             self.camera_dropdown.pack(side=tk.LEFT, padx=5)
+            
+            # Test Camera Button
+            self.test_btn = tk.Button(camera_frame, text="🧪 Test Camera", command=self.test_camera, 
+                                      bg="#FF9800", fg="white", font=("Arial", 11), width=12)
+            self.test_btn.pack(side=tk.LEFT, padx=5)
             
             # Start Camera Button (moved next to dropdown)
             self.start_btn = tk.Button(camera_frame, text="▶ Start Camera", command=self.start_camera, 
@@ -104,14 +111,79 @@ class CameraApp:
         self.status_label.pack(pady=5)
     
     def find_cameras(self):
-        """Detect available cameras on the system"""
+        """Detect available cameras on the system with timeout protection"""
         available = []
         for i in range(10):  # Check first 10 camera indices
-            cap = cv2.VideoCapture(i)
-            if cap.isOpened():
-                available.append(i)
-                cap.release()
+            try:
+                cap = cv2.VideoCapture(i)
+                if cap.isOpened():
+                    # Try to read one frame with timeout
+                    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                    ret, _ = cap.read()
+                    cap.release()
+                    if ret:
+                        available.append(i)
+            except Exception as e:
+                print(f"Error checking camera {i}: {e}")
+                continue
         return available
+    
+    def test_camera(self):
+        """Test selected camera safely before starting"""
+        if self.testing_camera:
+            messagebox.showwarning("Testing", "Already testing a camera!")
+            return
+        
+        selected_text = self.camera_var.get()
+        camera_num = int(selected_text.split()[-1])
+        
+        self.testing_camera = True
+        self.test_btn.config(state=tk.DISABLED)
+        self.status_label.config(text=f"Testing Camera {camera_num}...", fg="orange")
+        self.root.update()
+        
+        # Run test in a separate thread to prevent freezing
+        test_thread = threading.Thread(target=self._test_camera_thread, args=(camera_num,))
+        test_thread.daemon = True
+        test_thread.start()
+    
+    def _test_camera_thread(self, camera_num):
+        """Test camera in background thread"""
+        try:
+            cap = cv2.VideoCapture(camera_num)
+            
+            # Set timeout for opening
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            
+            # Try to read frames
+            success = False
+            for attempt in range(5):
+                ret, frame = cap.read()
+                if ret and frame is not None:
+                    success = True
+                    break
+                time.sleep(0.2)
+            
+            cap.release()
+            
+            # Update UI from main thread
+            self.root.after(0, self._test_camera_result, camera_num, success)
+        except Exception as e:
+            print(f"Error testing camera {camera_num}: {e}")
+            self.root.after(0, self._test_camera_result, camera_num, False)
+    
+    def _test_camera_result(self, camera_num, success):
+        """Show test results"""
+        self.testing_camera = False
+        self.test_btn.config(state=tk.NORMAL)
+        
+        if success:
+            messagebox.showinfo("Test Successful", f"✅ Camera {camera_num} is working!\n\nYou can safely use this camera.")
+            self.status_label.config(text=f"Status: Camera {camera_num} Test OK ✓", fg="green")
+        else:
+            messagebox.showerror("Test Failed", f"❌ Camera {camera_num} is not responding!\n\nTry another camera or check the connection.")
+            self.status_label.config(text=f"Status: Camera {camera_num} Test FAILED", fg="red")
+            self.root.after(3000, lambda: self.status_label.config(text="Status: Ready", fg="black"))
     
     def update_led_indicator(self, camera_index=None):
         """Update the LED indicator based on camera status"""
@@ -138,28 +210,45 @@ class CameraApp:
                 self.status_label.config(text="Status: No cameras available!", fg="red")
                 return
             
-            self.cap = cv2.VideoCapture(camera_index)
-            self.running = True
-            self.selected_camera = camera_index
-            self.camera_name = f"Camera {camera_index}"
-            
-            self.start_btn.config(state=tk.DISABLED)
-            self.stop_btn.config(state=tk.NORMAL)
-            self.snapshot_btn.config(state=tk.NORMAL)
-            
-            # Update LED indicator
-            self.update_led_indicator(camera_index)
-            
-            self.status_label.config(text=f"Status: Camera {camera_index} Running ✓", fg="green")
-            self.update_frame()
+            # Start camera with timeout protection
+            try:
+                self.cap = cv2.VideoCapture(camera_index)
+                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                
+                # Test if camera opens
+                ret, _ = self.cap.read()
+                if not ret:
+                    raise Exception("Camera failed to open")
+                
+                self.running = True
+                self.selected_camera = camera_index
+                self.camera_name = f"Camera {camera_index}"
+                
+                self.start_btn.config(state=tk.DISABLED)
+                self.stop_btn.config(state=tk.NORMAL)
+                self.snapshot_btn.config(state=tk.NORMAL)
+                self.test_btn.config(state=tk.DISABLED)
+                
+                # Update LED indicator
+                self.update_led_indicator(camera_index)
+                
+                self.status_label.config(text=f"Status: Camera {camera_index} Running ✓", fg="green")
+                self.update_frame()
+            except Exception as e:
+                self.cap = None
+                self.running = False
+                messagebox.showerror("Camera Error", f"Failed to open camera {camera_index}:\n{str(e)}\n\nTry testing the camera first!")
+                self.status_label.config(text="Status: Camera Failed", fg="red")
     
     def stop_camera(self):
         self.running = False
         if self.cap:
             self.cap.release()
+            self.cap = None
         self.start_btn.config(state=tk.NORMAL)
         self.stop_btn.config(state=tk.DISABLED)
         self.snapshot_btn.config(state=tk.DISABLED)
+        self.test_btn.config(state=tk.NORMAL)
         self.video_label.config(image="")
         self.camera_name_display.config(text="")
         
@@ -190,32 +279,48 @@ class CameraApp:
     
     def update_frame(self):
         if self.running and self.cap:
-            ret, frame = self.cap.read()
-            if ret:
-                frame = cv2.resize(frame, (700, 400))
-                frame = self.apply_effect(frame)
-                
-                # Convert to PIL format
-                cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                img = Image.fromarray(cv2image)
-                imgtk = ImageTk.PhotoImage(image=img)
-                
-                self.video_label.imgtk = imgtk
-                self.video_label.config(image=imgtk)
-                
-                # Update camera name display on video
-                self.camera_name_display.config(text=f"📷 {self.camera_name}")
+            try:
+                ret, frame = self.cap.read()
+                if ret and frame is not None:
+                    frame = cv2.resize(frame, (700, 400))
+                    frame = self.apply_effect(frame)
+                    
+                    # Convert to PIL format
+                    cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    img = Image.fromarray(cv2image)
+                    imgtk = ImageTk.PhotoImage(image=img)
+                    
+                    self.video_label.imgtk = imgtk
+                    self.video_label.config(image=imgtk)
+                    
+                    # Update camera name display on video
+                    self.camera_name_display.config(text=f"📷 {self.camera_name}")
+                else:
+                    # Camera disconnected
+                    self.running = False
+                    self.status_label.config(text="Status: Camera Disconnected!", fg="red")
+                    self.stop_camera()
+                    messagebox.showerror("Camera Error", "Camera was disconnected!")
+                    return
+            except Exception as e:
+                print(f"Frame update error: {e}")
+                self.running = False
+                self.stop_camera()
+                return
             
             self.root.after(30, self.update_frame)
     
     def take_snapshot(self):
         if self.running and self.cap:
-            ret, frame = self.cap.read()
-            if ret:
-                frame = self.apply_effect(frame)
-                cv2.imwrite("snapshot.jpg", frame)
-                self.status_label.config(text="Status: Snapshot saved as 'snapshot.jpg' ✓", fg="blue")
-                self.root.after(3000, lambda: self.status_label.config(text=f"Status: Camera {self.selected_camera} Running ✓", fg="green"))
+            try:
+                ret, frame = self.cap.read()
+                if ret:
+                    frame = self.apply_effect(frame)
+                    cv2.imwrite("snapshot.jpg", frame)
+                    self.status_label.config(text="Status: Snapshot saved as 'snapshot.jpg' ✓", fg="blue")
+                    self.root.after(3000, lambda: self.status_label.config(text=f"Status: Camera {self.selected_camera} Running ✓", fg="green"))
+            except Exception as e:
+                messagebox.showerror("Snapshot Error", f"Failed to save snapshot:\n{str(e)}")
 
 if __name__ == "__main__":
     root = tk.Tk()
