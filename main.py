@@ -8,7 +8,7 @@ class CameraApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Camera GUI - Easy Mode")
-        self.root.geometry("800x750")
+        self.root.geometry("900x800")
         self.root.configure(bg="#f0f0f0")
         
         # Camera variables
@@ -16,6 +16,7 @@ class CameraApp:
         self.running = False
         self.current_effect = "none"
         self.selected_camera = 0
+        self.camera_name = "Camera 0"
         
         # Title
         title_label = tk.Label(root, text="📷 Camera Application", font=("Arial", 20, "bold"), bg="#f0f0f0")
@@ -32,8 +33,18 @@ class CameraApp:
             camera_options = [f"Camera {i}" for i in self.available_cameras]
             self.camera_var = tk.StringVar(value=camera_options[0])
             self.camera_dropdown = ttk.Combobox(camera_frame, textvariable=self.camera_var, 
-                                               values=camera_options, state="readonly", width=30, font=("Arial", 11))
+                                               values=camera_options, state="readonly", width=20, font=("Arial", 11))
             self.camera_dropdown.pack(side=tk.LEFT, padx=5)
+            
+            # Start Camera Button (moved next to dropdown)
+            self.start_btn = tk.Button(camera_frame, text="▶ Start Camera", command=self.start_camera, 
+                                       bg="#4CAF50", fg="white", font=("Arial", 11), width=15)
+            self.start_btn.pack(side=tk.LEFT, padx=5)
+            
+            # Stop Camera Button
+            self.stop_btn = tk.Button(camera_frame, text="⏹ Stop", command=self.stop_camera, 
+                                      bg="#f44336", fg="white", font=("Arial", 11), width=10, state=tk.DISABLED)
+            self.stop_btn.pack(side=tk.LEFT, padx=5)
             
             self.camera_info_label = tk.Label(camera_frame, text=f"Found {len(self.available_cameras)} camera(s)", 
                                               font=("Arial", 10), bg="#f0f0f0", fg="green")
@@ -50,26 +61,22 @@ class CameraApp:
             self.camera_info_label.pack(side=tk.LEFT, padx=10)
         
         # Video frame
-        self.video_label = tk.Label(root, bg="black", width=600, height=400)
+        self.video_label = tk.Label(root, bg="black", width=700, height=400)
         self.video_label.pack(pady=10)
+        
+        # Camera Name Display (on top of video)
+        self.camera_name_display = tk.Label(self.video_label, text="", font=("Arial", 16, "bold"), 
+                                           bg="black", fg="lime", anchor="nw")
+        self.camera_name_display.place(x=10, y=10)
         
         # Control frame
         control_frame = tk.Frame(root, bg="#f0f0f0")
         control_frame.pack(pady=10)
         
-        # Start/Stop buttons
-        self.start_btn = tk.Button(control_frame, text="▶ Start Camera", command=self.start_camera, 
-                                   bg="#4CAF50", fg="white", font=("Arial", 12), width=15)
-        self.start_btn.grid(row=0, column=0, padx=5)
-        
-        self.stop_btn = tk.Button(control_frame, text="⏹ Stop Camera", command=self.stop_camera, 
-                                  bg="#f44336", fg="white", font=("Arial", 12), width=15, state=tk.DISABLED)
-        self.stop_btn.grid(row=0, column=1, padx=5)
-        
         # Snapshot button
         self.snapshot_btn = tk.Button(control_frame, text="📸 Take Snapshot", command=self.take_snapshot, 
                                       bg="#2196F3", fg="white", font=("Arial", 12), width=15, state=tk.DISABLED)
-        self.snapshot_btn.grid(row=0, column=2, padx=5)
+        self.snapshot_btn.pack(side=tk.LEFT, padx=5)
         
         # Effects frame
         effects_frame = tk.LabelFrame(root, text="Effects", font=("Arial", 12, "bold"), bg="#f0f0f0", padx=10, pady=10)
@@ -134,6 +141,8 @@ class CameraApp:
             self.cap = cv2.VideoCapture(camera_index)
             self.running = True
             self.selected_camera = camera_index
+            self.camera_name = f"Camera {camera_index}"
+            
             self.start_btn.config(state=tk.DISABLED)
             self.stop_btn.config(state=tk.NORMAL)
             self.snapshot_btn.config(state=tk.NORMAL)
@@ -152,6 +161,7 @@ class CameraApp:
         self.stop_btn.config(state=tk.DISABLED)
         self.snapshot_btn.config(state=tk.DISABLED)
         self.video_label.config(image="")
+        self.camera_name_display.config(text="")
         
         # Update LED indicator
         self.update_led_indicator()
@@ -182,7 +192,7 @@ class CameraApp:
         if self.running and self.cap:
             ret, frame = self.cap.read()
             if ret:
-                frame = cv2.resize(frame, (600, 400))
+                frame = cv2.resize(frame, (700, 400))
                 frame = self.apply_effect(frame)
                 
                 # Convert to PIL format
@@ -192,6 +202,9 @@ class CameraApp:
                 
                 self.video_label.imgtk = imgtk
                 self.video_label.config(image=imgtk)
+                
+                # Update camera name display on video
+                self.camera_name_display.config(text=f"📷 {self.camera_name}")
             
             self.root.after(30, self.update_frame)
     
