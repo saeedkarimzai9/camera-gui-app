@@ -17,7 +17,7 @@ class CameraApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Camera GUI - Virtual Camera Edition")
-        self.root.geometry("950x950")
+        self.root.geometry("1000x950")
         self.root.configure(bg="#f0f0f0")
         
         # Camera variables
@@ -29,6 +29,7 @@ class CameraApp:
         self.selected_camera = 0
         self.camera_name = "Camera 0"
         self.testing_camera = False
+        self.manual_camera_num = 0
         
         # Standard resolutions for virtual camera and display
         self.VCAM_WIDTH = 640
@@ -65,41 +66,66 @@ class CameraApp:
         # Find available cameras
         self.available_cameras = self.find_cameras()
         
+        # Create two options: Auto-detect and Manual
+        camera_options_frame = tk.Frame(camera_frame, bg="#f0f0f0")
+        camera_options_frame.pack(side=tk.LEFT, padx=5)
+        
+        # Auto-detected cameras
+        tk.Label(camera_options_frame, text="Auto-Detected:", font=("Arial", 10, "bold"), bg="#f0f0f0").pack(side=tk.LEFT, padx=5)
+        
         if self.available_cameras:
             camera_options = [f"Camera {i}" for i in self.available_cameras]
             self.camera_var = tk.StringVar(value=camera_options[0])
-            self.camera_dropdown = ttk.Combobox(camera_frame, textvariable=self.camera_var, 
-                                               values=camera_options, state="readonly", width=15, font=("Arial", 11))
+            self.camera_dropdown = ttk.Combobox(camera_options_frame, textvariable=self.camera_var, 
+                                               values=camera_options, state="readonly", width=12, font=("Arial", 11))
             self.camera_dropdown.pack(side=tk.LEFT, padx=5)
             
-            # Test Camera Button
-            self.test_btn = tk.Button(camera_frame, text="🧪 Test Camera", command=self.test_camera, 
-                                      bg="#FF9800", fg="white", font=("Arial", 11), width=12, padx=10)
-            self.test_btn.pack(side=tk.LEFT, padx=5)
-            
-            # Start Camera Button
-            self.start_btn = tk.Button(camera_frame, text="▶ Start Camera", command=self.start_camera, 
-                                       bg="#4CAF50", fg="white", font=("Arial", 11), width=15, padx=10)
-            self.start_btn.pack(side=tk.LEFT, padx=5)
-            
-            # Stop Camera Button
-            self.stop_btn = tk.Button(camera_frame, text="⏹ Stop", command=self.stop_camera, 
-                                      bg="#f44336", fg="white", font=("Arial", 11), width=10, padx=10, state=tk.DISABLED)
-            self.stop_btn.pack(side=tk.LEFT, padx=5)
-            
-            self.camera_info_label = tk.Label(camera_frame, text=f"Found {len(self.available_cameras)} camera(s)", 
-                                              font=("Arial", 10), bg="#f0f0f0", fg="green")
-            self.camera_info_label.pack(side=tk.LEFT, padx=10)
-            
-            # Camera LED Indicator
-            self.led_indicator = tk.Label(camera_frame, text="⚫", font=("Arial", 20), bg="#f0f0f0", fg="gray")
-            self.led_indicator.pack(side=tk.LEFT, padx=10)
-            self.led_label = tk.Label(camera_frame, text="LED OFF", font=("Arial", 10), bg="#f0f0f0", fg="gray")
-            self.led_label.pack(side=tk.LEFT, padx=5)
+            self.camera_info_label = tk.Label(camera_options_frame, text=f"({len(self.available_cameras)} found)", 
+                                              font=("Arial", 9), bg="#f0f0f0", fg="green")
+            self.camera_info_label.pack(side=tk.LEFT, padx=5)
         else:
-            self.camera_info_label = tk.Label(camera_frame, text="❌ No cameras detected!", 
-                                              font=("Arial", 10), bg="#f0f0f0", fg="red")
-            self.camera_info_label.pack(side=tk.LEFT, padx=10)
+            self.camera_dropdown = ttk.Combobox(camera_options_frame, values=[], state="readonly", width=12, font=("Arial", 11))
+            self.camera_dropdown.pack(side=tk.LEFT, padx=5)
+            
+            self.camera_info_label = tk.Label(camera_options_frame, text="(0 found)", 
+                                              font=("Arial", 9), bg="#f0f0f0", fg="red")
+            self.camera_info_label.pack(side=tk.LEFT, padx=5)
+        
+        # Manual camera selection
+        manual_frame = tk.Frame(camera_frame, bg="#f0f0f0")
+        manual_frame.pack(side=tk.LEFT, padx=10)
+        
+        tk.Label(manual_frame, text="Or Use:", font=("Arial", 10, "bold"), bg="#f0f0f0").pack(side=tk.LEFT, padx=5)
+        
+        # Dropdown for manual camera numbers (0-9)
+        self.manual_camera_var = tk.StringVar(value="Camera 0")
+        manual_options = [f"Camera {i}" for i in range(10)]
+        self.manual_dropdown = ttk.Combobox(manual_frame, textvariable=self.manual_camera_var, 
+                                           values=manual_options, state="readonly", width=12, font=("Arial", 11))
+        self.manual_dropdown.pack(side=tk.LEFT, padx=5)
+        
+        tk.Label(manual_frame, text="(Manual)", font=("Arial", 9), bg="#f0f0f0", fg="blue").pack(side=tk.LEFT, padx=5)
+        
+        # Test Camera Button
+        self.test_btn = tk.Button(camera_frame, text="🧪 Test Camera", command=self.test_camera, 
+                                  bg="#FF9800", fg="white", font=("Arial", 11), width=12, padx=10)
+        self.test_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Start Camera Button
+        self.start_btn = tk.Button(camera_frame, text="▶ Start Camera", command=self.start_camera, 
+                                   bg="#4CAF50", fg="white", font=("Arial", 11), width=15, padx=10)
+        self.start_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Stop Camera Button
+        self.stop_btn = tk.Button(camera_frame, text="⏹ Stop", command=self.stop_camera, 
+                                  bg="#f44336", fg="white", font=("Arial", 11), width=10, padx=10, state=tk.DISABLED)
+        self.stop_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Camera LED Indicator
+        self.led_indicator = tk.Label(camera_frame, text="⚫", font=("Arial", 20), bg="#f0f0f0", fg="gray")
+        self.led_indicator.pack(side=tk.LEFT, padx=10)
+        self.led_label = tk.Label(camera_frame, text="LED OFF", font=("Arial", 10), bg="#f0f0f0", fg="gray")
+        self.led_label.pack(side=tk.LEFT, padx=5)
         
         # Video frame with better styling
         self.video_label = tk.Label(root, bg="black", width=self.DISPLAY_WIDTH, height=self.DISPLAY_HEIGHT, 
@@ -153,32 +179,64 @@ class CameraApp:
             effects_frame.columnconfigure(i, weight=1)
         
         # Status label
-        self.status_label = tk.Label(root, text="Status: Ready", font=("Arial", 10, "bold"), bg="#f0f0f0", fg="#333")
+        self.status_label = tk.Label(root, text="Status: Ready - Select Camera 0 or use Manual selector", 
+                                     font=("Arial", 10, "bold"), bg="#f0f0f0", fg="#333")
         self.status_label.pack(pady=5)
         
         # Instructions
+        instructions_text = "📝 TIP: If Camera 0 doesn't show in Auto-Detected, use the Manual selector on the right!"
         if not VIRTUAL_CAM_AVAILABLE:
-            instructions = tk.Label(root, text="⚠️ To enable virtual camera: pip install pyvirtualcam", 
-                                   font=("Arial", 9), bg="#fff3cd", fg="#856404", padx=10, pady=5)
-            instructions.pack(pady=5, fill=tk.X, padx=20)
+            instructions_text += "\n⚠️ To enable virtual camera: pip install pyvirtualcam"
+        
+        instructions = tk.Label(root, text=instructions_text, 
+                               font=("Arial", 9), bg="#e3f2fd", fg="#1976d2", padx=10, pady=5)
+        instructions.pack(pady=5, fill=tk.X, padx=20)
     
     def find_cameras(self):
-        """Detect available cameras on the system with timeout protection"""
+        """Detect available cameras on the system with improved detection"""
         available = []
+        print("🔍 Scanning for cameras...")
         for i in range(10):  # Check first 10 camera indices
             try:
                 cap = cv2.VideoCapture(i)
                 if cap.isOpened():
-                    # Try to read one frame with timeout
-                    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-                    ret, _ = cap.read()
+                    # Try multiple times to read
+                    success = False
+                    for attempt in range(3):
+                        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+                        ret, frame = cap.read()
+                        if ret and frame is not None:
+                            success = True
+                            print(f"✅ Found Camera {i}")
+                            break
+                        time.sleep(0.1)
+                    
                     cap.release()
-                    if ret:
+                    if success:
                         available.append(i)
             except Exception as e:
                 print(f"Error checking camera {i}: {e}")
                 continue
+        
+        if not available:
+            print("⚠️ No cameras auto-detected - use Manual selector!")
+        
         return available
+    
+    def get_selected_camera(self):
+        """Get camera number from either auto-detect or manual selection"""
+        # Try to use manual camera first if set
+        manual_text = self.manual_camera_var.get()
+        manual_num = int(manual_text.split()[-1])
+        
+        # If auto-detect has options, prefer it
+        if self.available_cameras and self.camera_dropdown.get():
+            auto_text = self.camera_var.get()
+            auto_num = int(auto_text.split()[-1])
+            return auto_num
+        
+        # Otherwise use manual
+        return manual_num
     
     def test_camera(self):
         """Test selected camera safely before starting"""
@@ -186,8 +244,8 @@ class CameraApp:
             messagebox.showwarning("Testing", "Already testing a camera!")
             return
         
-        selected_text = self.camera_var.get()
-        camera_num = int(selected_text.split()[-1])
+        camera_num = self.get_selected_camera()
+        self.manual_camera_num = camera_num
         
         self.testing_camera = True
         self.test_btn.config(state=tk.DISABLED)
@@ -233,7 +291,7 @@ class CameraApp:
             messagebox.showinfo("Test Successful", f"✅ Camera {camera_num} is working!\n\nYou can safely use this camera.")
             self.status_label.config(text=f"Status: Camera {camera_num} Test OK ✓", fg="green")
         else:
-            messagebox.showerror("Test Failed", f"❌ Camera {camera_num} is not responding!\n\nTry another camera or check the connection.")
+            messagebox.showerror("Test Failed", f"❌ Camera {camera_num} is not responding!\n\nTry another camera number or check the connection.")
             self.status_label.config(text=f"Status: Camera {camera_num} Test FAILED", fg="red")
             self.root.after(3000, lambda: self.status_label.config(text="Status: Ready", fg="#333"))
     
@@ -251,16 +309,8 @@ class CameraApp:
     def start_camera(self):
         if not self.running:
             # Get selected camera index
-            if self.available_cameras:
-                camera_index = self.available_cameras[0]  # Default to first available
-                if hasattr(self, 'camera_dropdown'):
-                    selected_text = self.camera_var.get()
-                    camera_num = int(selected_text.split()[-1])
-                    if camera_num in self.available_cameras:
-                        camera_index = camera_num
-            else:
-                self.status_label.config(text="Status: No cameras available!", fg="red")
-                return
+            camera_index = self.get_selected_camera()
+            self.manual_camera_num = camera_index
             
             # Start camera with timeout protection
             try:
@@ -281,6 +331,8 @@ class CameraApp:
                 self.snapshot_btn.config(state=tk.NORMAL)
                 self.vcam_btn.config(state=tk.NORMAL)
                 self.test_btn.config(state=tk.DISABLED)
+                self.camera_dropdown.config(state=tk.DISABLED)
+                self.manual_dropdown.config(state=tk.DISABLED)
                 
                 # Update LED indicator
                 self.update_led_indicator(camera_index)
@@ -304,6 +356,8 @@ class CameraApp:
         self.snapshot_btn.config(state=tk.DISABLED)
         self.vcam_btn.config(state=tk.DISABLED)
         self.test_btn.config(state=tk.NORMAL)
+        self.camera_dropdown.config(state="readonly")
+        self.manual_dropdown.config(state="readonly")
         self.video_label.config(image="")
         self.camera_name_display.config(text="")
         
