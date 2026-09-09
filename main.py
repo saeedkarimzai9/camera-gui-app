@@ -17,7 +17,7 @@ class CameraApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Camera GUI - Virtual Camera Edition")
-        self.root.geometry("900x900")
+        self.root.geometry("950x950")
         self.root.configure(bg="#f0f0f0")
         
         # Camera variables
@@ -30,9 +30,15 @@ class CameraApp:
         self.camera_name = "Camera 0"
         self.testing_camera = False
         
+        # Standard resolutions for virtual camera and display
+        self.VCAM_WIDTH = 640
+        self.VCAM_HEIGHT = 480
+        self.DISPLAY_WIDTH = 720
+        self.DISPLAY_HEIGHT = 540
+        
         # Title
         title_label = tk.Label(root, text="📷 Camera Application - Virtual Camera", 
-                              font=("Arial", 20, "bold"), bg="#f0f0f0")
+                              font=("Arial", 20, "bold"), bg="#f0f0f0", fg="#333")
         title_label.pack(pady=10)
         
         # Virtual Camera Status
@@ -40,7 +46,7 @@ class CameraApp:
         vcam_status_frame.pack(pady=5)
         
         vcam_label = tk.Label(vcam_status_frame, text="Virtual Camera Status:", 
-                             font=("Arial", 11, "bold"), bg="#f0f0f0")
+                             font=("Arial", 11, "bold"), bg="#f0f0f0", fg="#333")
         vcam_label.pack(side=tk.LEFT, padx=5)
         
         if VIRTUAL_CAM_AVAILABLE:
@@ -68,17 +74,17 @@ class CameraApp:
             
             # Test Camera Button
             self.test_btn = tk.Button(camera_frame, text="🧪 Test Camera", command=self.test_camera, 
-                                      bg="#FF9800", fg="white", font=("Arial", 11), width=12)
+                                      bg="#FF9800", fg="white", font=("Arial", 11), width=12, padx=10)
             self.test_btn.pack(side=tk.LEFT, padx=5)
             
             # Start Camera Button
             self.start_btn = tk.Button(camera_frame, text="▶ Start Camera", command=self.start_camera, 
-                                       bg="#4CAF50", fg="white", font=("Arial", 11), width=15)
+                                       bg="#4CAF50", fg="white", font=("Arial", 11), width=15, padx=10)
             self.start_btn.pack(side=tk.LEFT, padx=5)
             
             # Stop Camera Button
             self.stop_btn = tk.Button(camera_frame, text="⏹ Stop", command=self.stop_camera, 
-                                      bg="#f44336", fg="white", font=("Arial", 11), width=10, state=tk.DISABLED)
+                                      bg="#f44336", fg="white", font=("Arial", 11), width=10, padx=10, state=tk.DISABLED)
             self.stop_btn.pack(side=tk.LEFT, padx=5)
             
             self.camera_info_label = tk.Label(camera_frame, text=f"Found {len(self.available_cameras)} camera(s)", 
@@ -95,14 +101,15 @@ class CameraApp:
                                               font=("Arial", 10), bg="#f0f0f0", fg="red")
             self.camera_info_label.pack(side=tk.LEFT, padx=10)
         
-        # Video frame
-        self.video_label = tk.Label(root, bg="black", width=700, height=400)
-        self.video_label.pack(pady=10)
+        # Video frame with better styling
+        self.video_label = tk.Label(root, bg="black", width=self.DISPLAY_WIDTH, height=self.DISPLAY_HEIGHT, 
+                                   relief=tk.SUNKEN, bd=2)
+        self.video_label.pack(pady=15)
         
         # Camera Name Display (on top of video)
-        self.camera_name_display = tk.Label(self.video_label, text="", font=("Arial", 16, "bold"), 
+        self.camera_name_display = tk.Label(self.video_label, text="", font=("Arial", 14, "bold"), 
                                            bg="black", fg="lime", anchor="nw")
-        self.camera_name_display.place(x=10, y=10)
+        self.camera_name_display.place(x=15, y=15)
         
         # Control frame
         control_frame = tk.Frame(root, bg="#f0f0f0")
@@ -110,18 +117,18 @@ class CameraApp:
         
         # Snapshot button
         self.snapshot_btn = tk.Button(control_frame, text="📸 Take Snapshot", command=self.take_snapshot, 
-                                      bg="#2196F3", fg="white", font=("Arial", 12), width=15, state=tk.DISABLED)
+                                      bg="#2196F3", fg="white", font=("Arial", 12, "bold"), width=16, padx=10, state=tk.DISABLED)
         self.snapshot_btn.pack(side=tk.LEFT, padx=5)
         
         # Virtual Camera Toggle
         self.vcam_btn = tk.Button(control_frame, text="🌐 Enable Virtual Camera", 
                                  command=self.toggle_virtual_camera, 
-                                 bg="#9C27B0", fg="white", font=("Arial", 12), width=20, state=tk.DISABLED)
+                                 bg="#9C27B0", fg="white", font=("Arial", 12, "bold"), width=22, padx=10, state=tk.DISABLED)
         self.vcam_btn.pack(side=tk.LEFT, padx=5)
         
         # Effects frame
-        effects_frame = tk.LabelFrame(root, text="Effects", font=("Arial", 12, "bold"), 
-                                     bg="#f0f0f0", padx=10, pady=10)
+        effects_frame = tk.LabelFrame(root, text="Effects - Apply to All (GUI + Virtual Camera)", 
+                                     font=("Arial", 12, "bold"), bg="#f0f0f0", padx=10, pady=10)
         effects_frame.pack(pady=10, fill=tk.BOTH, padx=20)
         
         # Effect buttons
@@ -137,12 +144,16 @@ class CameraApp:
         self.effect_buttons = {}
         for i, (name, effect_id) in enumerate(effects):
             btn = tk.Button(effects_frame, text=name, command=lambda e=effect_id: self.set_effect(e),
-                           bg="#9C27B0", fg="white", font=("Arial", 10), width=12)
-            btn.grid(row=i//3, column=i%3, padx=5, pady=5)
+                           bg="#9C27B0", fg="white", font=("Arial", 10, "bold"), width=14, padx=8)
+            btn.grid(row=i//3, column=i%3, padx=5, pady=5, sticky="ew")
             self.effect_buttons[effect_id] = btn
         
+        # Make columns equal width
+        for i in range(3):
+            effects_frame.columnconfigure(i, weight=1)
+        
         # Status label
-        self.status_label = tk.Label(root, text="Status: Ready", font=("Arial", 10), bg="#f0f0f0")
+        self.status_label = tk.Label(root, text="Status: Ready", font=("Arial", 10, "bold"), bg="#f0f0f0", fg="#333")
         self.status_label.pack(pady=5)
         
         # Instructions
@@ -224,7 +235,7 @@ class CameraApp:
         else:
             messagebox.showerror("Test Failed", f"❌ Camera {camera_num} is not responding!\n\nTry another camera or check the connection.")
             self.status_label.config(text=f"Status: Camera {camera_num} Test FAILED", fg="red")
-            self.root.after(3000, lambda: self.status_label.config(text="Status: Ready", fg="black"))
+            self.root.after(3000, lambda: self.status_label.config(text="Status: Ready", fg="#333"))
     
     def update_led_indicator(self, camera_index=None):
         """Update the LED indicator based on camera status"""
@@ -318,19 +329,13 @@ class CameraApp:
             if not VIRTUAL_CAM_AVAILABLE:
                 raise Exception("pyvirtualcam not installed")
             
-            # Get first frame to determine resolution
-            if self.cap and self.running:
-                ret, frame = self.cap.read()
-                if ret:
-                    height, width = frame.shape[:2]
-                    self.vcam = pyvirtualcam.Camera(width=width, height=height, fps=30)
-                    self.virtual_cam_active = True
-                    self.vcam_btn.config(text="🌐 Disable Virtual Camera", bg="#4CAF50")
-                    self.vcam_status.config(text="🟢 ACTIVE", fg="green")
-                    self.status_label.config(text="Virtual Camera ACTIVE - Stream to OBS/Discord/Websites", fg="green")
-                    messagebox.showinfo("Success", "✅ Virtual Camera is now ACTIVE!\n\nYou can now use this camera in:\n• OBS Studio\n• Discord\n• Websites\n• Any app that uses camera")
-            else:
-                messagebox.showerror("Error", "Camera must be running first!")
+            # Create virtual camera with standard resolution
+            self.vcam = pyvirtualcam.Camera(width=self.VCAM_WIDTH, height=self.VCAM_HEIGHT, fps=30)
+            self.virtual_cam_active = True
+            self.vcam_btn.config(text="🌐 Disable Virtual Camera", bg="#4CAF50")
+            self.vcam_status.config(text="🟢 ACTIVE", fg="green")
+            self.status_label.config(text="Virtual Camera ACTIVE - Stream to OBS/Discord/Websites", fg="green")
+            messagebox.showinfo("Success", "✅ Virtual Camera is now ACTIVE!\n\nYou can now use this camera in:\n• OBS Studio\n• Discord\n• Websites\n• Any app that uses camera\n\nAll effects are applied!")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to start virtual camera:\n{str(e)}\n\nMake sure pyvirtualcam is installed:\npip install pyvirtualcam")
             self.virtual_cam_active = False
@@ -352,6 +357,7 @@ class CameraApp:
         self.current_effect = effect
     
     def apply_effect(self, frame):
+        """Apply selected effect to frame"""
         if self.current_effect == "gray":
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
@@ -368,25 +374,55 @@ class CameraApp:
         
         return frame
     
+    def resize_frame(self, frame, width, height):
+        """Resize frame while maintaining aspect ratio"""
+        h, w = frame.shape[:2]
+        aspect = w / h
+        
+        # Calculate new dimensions
+        if aspect > (width / height):
+            new_w = width
+            new_h = int(width / aspect)
+        else:
+            new_h = height
+            new_w = int(height * aspect)
+        
+        # Resize frame
+        frame = cv2.resize(frame, (new_w, new_h))
+        
+        # Create canvas with padding
+        canvas = np.zeros((height, width, 3), dtype=np.uint8)
+        y_offset = (height - new_h) // 2
+        x_offset = (width - new_w) // 2
+        canvas[y_offset:y_offset+new_h, x_offset:x_offset+new_w] = frame
+        
+        return canvas
+    
     def update_frame(self):
         if self.running and self.cap:
             try:
                 ret, frame = self.cap.read()
                 if ret and frame is not None:
-                    frame = cv2.resize(frame, (700, 400))
+                    # Apply effects
                     frame = self.apply_effect(frame)
+                    
+                    # Prepare frame for virtual camera (640x480)
+                    vcam_frame = self.resize_frame(frame, self.VCAM_WIDTH, self.VCAM_HEIGHT)
                     
                     # Send to virtual camera if active
                     if self.virtual_cam_active and self.vcam:
                         try:
                             # Convert BGR to RGB for virtual camera
-                            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                            frame_rgb = cv2.cvtColor(vcam_frame, cv2.COLOR_BGR2RGB)
                             self.vcam.send(frame_rgb)
                         except Exception as e:
                             print(f"Error sending frame to virtual camera: {e}")
                     
+                    # Prepare frame for display (720x540)
+                    display_frame = self.resize_frame(frame, self.DISPLAY_WIDTH, self.DISPLAY_HEIGHT)
+                    
                     # Convert to PIL format for display
-                    cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    cv2image = cv2.cvtColor(display_frame, cv2.COLOR_BGR2RGB)
                     img = Image.fromarray(cv2image)
                     imgtk = ImageTk.PhotoImage(image=img)
                     
