@@ -8,7 +8,7 @@ class CameraApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Camera GUI - Easy Mode")
-        self.root.geometry("800x700")
+        self.root.geometry("800x750")
         self.root.configure(bg="#f0f0f0")
         
         # Camera variables
@@ -38,6 +38,12 @@ class CameraApp:
             self.camera_info_label = tk.Label(camera_frame, text=f"Found {len(self.available_cameras)} camera(s)", 
                                               font=("Arial", 10), bg="#f0f0f0", fg="green")
             self.camera_info_label.pack(side=tk.LEFT, padx=10)
+            
+            # Camera LED Indicator
+            self.led_indicator = tk.Label(camera_frame, text="⚫", font=("Arial", 20), bg="#f0f0f0", fg="gray")
+            self.led_indicator.pack(side=tk.LEFT, padx=10)
+            self.led_label = tk.Label(camera_frame, text="LED OFF", font=("Arial", 10), bg="#f0f0f0", fg="gray")
+            self.led_label.pack(side=tk.LEFT, padx=5)
         else:
             self.camera_info_label = tk.Label(camera_frame, text="❌ No cameras detected!", 
                                               font=("Arial", 10), bg="#f0f0f0", fg="red")
@@ -100,6 +106,17 @@ class CameraApp:
                 cap.release()
         return available
     
+    def update_led_indicator(self, camera_index=None):
+        """Update the LED indicator based on camera status"""
+        if self.running and camera_index is not None:
+            # LED ON - Green
+            self.led_indicator.config(fg="lime")
+            self.led_label.config(text="🔴 LED ON", fg="red")
+        else:
+            # LED OFF - Gray
+            self.led_indicator.config(fg="gray")
+            self.led_label.config(text="⚫ LED OFF", fg="gray")
+    
     def start_camera(self):
         if not self.running:
             # Get selected camera index
@@ -116,9 +133,14 @@ class CameraApp:
             
             self.cap = cv2.VideoCapture(camera_index)
             self.running = True
+            self.selected_camera = camera_index
             self.start_btn.config(state=tk.DISABLED)
             self.stop_btn.config(state=tk.NORMAL)
             self.snapshot_btn.config(state=tk.NORMAL)
+            
+            # Update LED indicator
+            self.update_led_indicator(camera_index)
+            
             self.status_label.config(text=f"Status: Camera {camera_index} Running ✓", fg="green")
             self.update_frame()
     
@@ -130,6 +152,10 @@ class CameraApp:
         self.stop_btn.config(state=tk.DISABLED)
         self.snapshot_btn.config(state=tk.DISABLED)
         self.video_label.config(image="")
+        
+        # Update LED indicator
+        self.update_led_indicator()
+        
         self.status_label.config(text="Status: Camera Stopped", fg="red")
     
     def set_effect(self, effect):
@@ -176,7 +202,7 @@ class CameraApp:
                 frame = self.apply_effect(frame)
                 cv2.imwrite("snapshot.jpg", frame)
                 self.status_label.config(text="Status: Snapshot saved as 'snapshot.jpg' ✓", fg="blue")
-                self.root.after(3000, lambda: self.status_label.config(text="Status: Camera Running ✓", fg="green"))
+                self.root.after(3000, lambda: self.status_label.config(text=f"Status: Camera {self.selected_camera} Running ✓", fg="green"))
 
 if __name__ == "__main__":
     root = tk.Tk()
