@@ -15,10 +15,33 @@ class CameraApp:
         self.cap = None
         self.running = False
         self.current_effect = "none"
+        self.selected_camera = 0
         
         # Title
         title_label = tk.Label(root, text="📷 Camera Application", font=("Arial", 20, "bold"), bg="#f0f0f0")
         title_label.pack(pady=10)
+        
+        # Camera Selection Frame
+        camera_frame = tk.LabelFrame(root, text="Select Camera", font=("Arial", 12, "bold"), bg="#f0f0f0", padx=10, pady=10)
+        camera_frame.pack(pady=10, fill=tk.BOTH, padx=20)
+        
+        # Find available cameras
+        self.available_cameras = self.find_cameras()
+        
+        if self.available_cameras:
+            camera_options = [f"Camera {i}" for i in self.available_cameras]
+            self.camera_var = tk.StringVar(value=camera_options[0])
+            self.camera_dropdown = ttk.Combobox(camera_frame, textvariable=self.camera_var, 
+                                               values=camera_options, state="readonly", width=30, font=("Arial", 11))
+            self.camera_dropdown.pack(side=tk.LEFT, padx=5)
+            
+            self.camera_info_label = tk.Label(camera_frame, text=f"Found {len(self.available_cameras)} camera(s)", 
+                                              font=("Arial", 10), bg="#f0f0f0", fg="green")
+            self.camera_info_label.pack(side=tk.LEFT, padx=10)
+        else:
+            self.camera_info_label = tk.Label(camera_frame, text="❌ No cameras detected!", 
+                                              font=("Arial", 10), bg="#f0f0f0", fg="red")
+            self.camera_info_label.pack(side=tk.LEFT, padx=10)
         
         # Video frame
         self.video_label = tk.Label(root, bg="black", width=600, height=400)
@@ -66,15 +89,37 @@ class CameraApp:
         # Status label
         self.status_label = tk.Label(root, text="Status: Ready", font=("Arial", 10), bg="#f0f0f0")
         self.status_label.pack(pady=5)
-        
+    
+    def find_cameras(self):
+        """Detect available cameras on the system"""
+        available = []
+        for i in range(10):  # Check first 10 camera indices
+            cap = cv2.VideoCapture(i)
+            if cap.isOpened():
+                available.append(i)
+                cap.release()
+        return available
+    
     def start_camera(self):
         if not self.running:
-            self.cap = cv2.VideoCapture(0)
+            # Get selected camera index
+            if self.available_cameras:
+                camera_index = self.available_cameras[0]  # Default to first available
+                if hasattr(self, 'camera_dropdown'):
+                    selected_text = self.camera_var.get()
+                    camera_num = int(selected_text.split()[-1])
+                    if camera_num in self.available_cameras:
+                        camera_index = camera_num
+            else:
+                self.status_label.config(text="Status: No cameras available!", fg="red")
+                return
+            
+            self.cap = cv2.VideoCapture(camera_index)
             self.running = True
             self.start_btn.config(state=tk.DISABLED)
             self.stop_btn.config(state=tk.NORMAL)
             self.snapshot_btn.config(state=tk.NORMAL)
-            self.status_label.config(text="Status: Camera Running ✓", fg="green")
+            self.status_label.config(text=f"Status: Camera {camera_index} Running ✓", fg="green")
             self.update_frame()
     
     def stop_camera(self):
