@@ -4,28 +4,56 @@ import cv2
 from PIL import Image, ImageTk
 import threading
 import time
+import numpy as np
+
+try:
+    import pyvirtualcam
+    VIRTUAL_CAM_AVAILABLE = True
+except ImportError:
+    VIRTUAL_CAM_AVAILABLE = False
+    print("WARNING: pyvirtualcam not installed. Install with: pip install pyvirtualcam")
 
 class CameraApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Camera GUI - Easy Mode")
-        self.root.geometry("900x800")
+        self.root.title("Camera GUI - Virtual Camera Edition")
+        self.root.geometry("900x900")
         self.root.configure(bg="#f0f0f0")
         
         # Camera variables
         self.cap = None
+        self.vcam = None
         self.running = False
+        self.virtual_cam_active = False
         self.current_effect = "none"
         self.selected_camera = 0
         self.camera_name = "Camera 0"
         self.testing_camera = False
         
         # Title
-        title_label = tk.Label(root, text="📷 Camera Application", font=("Arial", 20, "bold"), bg="#f0f0f0")
+        title_label = tk.Label(root, text="📷 Camera Application - Virtual Camera", 
+                              font=("Arial", 20, "bold"), bg="#f0f0f0")
         title_label.pack(pady=10)
         
+        # Virtual Camera Status
+        vcam_status_frame = tk.Frame(root, bg="#f0f0f0")
+        vcam_status_frame.pack(pady=5)
+        
+        vcam_label = tk.Label(vcam_status_frame, text="Virtual Camera Status:", 
+                             font=("Arial", 11, "bold"), bg="#f0f0f0")
+        vcam_label.pack(side=tk.LEFT, padx=5)
+        
+        if VIRTUAL_CAM_AVAILABLE:
+            self.vcam_status = tk.Label(vcam_status_frame, text="🔴 INACTIVE", 
+                                       font=("Arial", 11, "bold"), bg="#f0f0f0", fg="red")
+        else:
+            self.vcam_status = tk.Label(vcam_status_frame, text="❌ NOT INSTALLED", 
+                                       font=("Arial", 11, "bold"), bg="#f0f0f0", fg="red")
+        self.vcam_status.pack(side=tk.LEFT, padx=5)
+        
         # Camera Selection Frame
-        camera_frame = tk.LabelFrame(root, text="Select Camera", font=("Arial", 12, "bold"), bg="#f0f0f0", padx=10, pady=10)
+        camera_frame = tk.LabelFrame(root, text="Select Camera", font=("Arial", 12, "bold"), 
+                                    bg="#f0f0f0", padx=10, pady=10)
         camera_frame.pack(pady=10, fill=tk.BOTH, padx=20)
         
         # Find available cameras
@@ -43,7 +71,7 @@ class CameraApp:
                                       bg="#FF9800", fg="white", font=("Arial", 11), width=12)
             self.test_btn.pack(side=tk.LEFT, padx=5)
             
-            # Start Camera Button (moved next to dropdown)
+            # Start Camera Button
             self.start_btn = tk.Button(camera_frame, text="▶ Start Camera", command=self.start_camera, 
                                        bg="#4CAF50", fg="white", font=("Arial", 11), width=15)
             self.start_btn.pack(side=tk.LEFT, padx=5)
@@ -85,8 +113,15 @@ class CameraApp:
                                       bg="#2196F3", fg="white", font=("Arial", 12), width=15, state=tk.DISABLED)
         self.snapshot_btn.pack(side=tk.LEFT, padx=5)
         
+        # Virtual Camera Toggle
+        self.vcam_btn = tk.Button(control_frame, text="🌐 Enable Virtual Camera", 
+                                 command=self.toggle_virtual_camera, 
+                                 bg="#9C27B0", fg="white", font=("Arial", 12), width=20, state=tk.DISABLED)
+        self.vcam_btn.pack(side=tk.LEFT, padx=5)
+        
         # Effects frame
-        effects_frame = tk.LabelFrame(root, text="Effects", font=("Arial", 12, "bold"), bg="#f0f0f0", padx=10, pady=10)
+        effects_frame = tk.LabelFrame(root, text="Effects", font=("Arial", 12, "bold"), 
+                                     bg="#f0f0f0", padx=10, pady=10)
         effects_frame.pack(pady=10, fill=tk.BOTH, padx=20)
         
         # Effect buttons
@@ -109,6 +144,12 @@ class CameraApp:
         # Status label
         self.status_label = tk.Label(root, text="Status: Ready", font=("Arial", 10), bg="#f0f0f0")
         self.status_label.pack(pady=5)
+        
+        # Instructions
+        if not VIRTUAL_CAM_AVAILABLE:
+            instructions = tk.Label(root, text="⚠️ To enable virtual camera: pip install pyvirtualcam", 
+                                   font=("Arial", 9), bg="#fff3cd", fg="#856404", padx=10, pady=5)
+            instructions.pack(pady=5, fill=tk.X, padx=20)
     
     def find_cameras(self):
         """Detect available cameras on the system with timeout protection"""
@@ -227,6 +268,7 @@ class CameraApp:
                 self.start_btn.config(state=tk.DISABLED)
                 self.stop_btn.config(state=tk.NORMAL)
                 self.snapshot_btn.config(state=tk.NORMAL)
+                self.vcam_btn.config(state=tk.NORMAL)
                 self.test_btn.config(state=tk.DISABLED)
                 
                 # Update LED indicator
@@ -242,12 +284,14 @@ class CameraApp:
     
     def stop_camera(self):
         self.running = False
+        self.stop_virtual_camera()
         if self.cap:
             self.cap.release()
             self.cap = None
         self.start_btn.config(state=tk.NORMAL)
         self.stop_btn.config(state=tk.DISABLED)
         self.snapshot_btn.config(state=tk.DISABLED)
+        self.vcam_btn.config(state=tk.DISABLED)
         self.test_btn.config(state=tk.NORMAL)
         self.video_label.config(image="")
         self.camera_name_display.config(text="")
@@ -256,6 +300,53 @@ class CameraApp:
         self.update_led_indicator()
         
         self.status_label.config(text="Status: Camera Stopped", fg="red")
+    
+    def toggle_virtual_camera(self):
+        """Toggle virtual camera on/off"""
+        if not VIRTUAL_CAM_AVAILABLE:
+            messagebox.showerror("Error", "pyvirtualcam is not installed!\n\nRun: pip install pyvirtualcam")
+            return
+        
+        if self.virtual_cam_active:
+            self.stop_virtual_camera()
+        else:
+            self.start_virtual_camera()
+    
+    def start_virtual_camera(self):
+        """Start streaming to virtual camera"""
+        try:
+            if not VIRTUAL_CAM_AVAILABLE:
+                raise Exception("pyvirtualcam not installed")
+            
+            # Get first frame to determine resolution
+            if self.cap and self.running:
+                ret, frame = self.cap.read()
+                if ret:
+                    height, width = frame.shape[:2]
+                    self.vcam = pyvirtualcam.Camera(width=width, height=height, fps=30)
+                    self.virtual_cam_active = True
+                    self.vcam_btn.config(text="🌐 Disable Virtual Camera", bg="#4CAF50")
+                    self.vcam_status.config(text="🟢 ACTIVE", fg="green")
+                    self.status_label.config(text="Virtual Camera ACTIVE - Stream to OBS/Discord/Websites", fg="green")
+                    messagebox.showinfo("Success", "✅ Virtual Camera is now ACTIVE!\n\nYou can now use this camera in:\n• OBS Studio\n• Discord\n• Websites\n• Any app that uses camera")
+            else:
+                messagebox.showerror("Error", "Camera must be running first!")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to start virtual camera:\n{str(e)}\n\nMake sure pyvirtualcam is installed:\npip install pyvirtualcam")
+            self.virtual_cam_active = False
+    
+    def stop_virtual_camera(self):
+        """Stop virtual camera stream"""
+        try:
+            if self.vcam:
+                self.vcam.close()
+                self.vcam = None
+            self.virtual_cam_active = False
+            self.vcam_btn.config(text="🌐 Enable Virtual Camera", bg="#9C27B0")
+            self.vcam_status.config(text="🔴 INACTIVE", fg="red")
+            self.status_label.config(text="Status: Virtual Camera Stopped", fg="orange")
+        except Exception as e:
+            print(f"Error stopping virtual camera: {e}")
     
     def set_effect(self, effect):
         self.current_effect = effect
@@ -285,7 +376,16 @@ class CameraApp:
                     frame = cv2.resize(frame, (700, 400))
                     frame = self.apply_effect(frame)
                     
-                    # Convert to PIL format
+                    # Send to virtual camera if active
+                    if self.virtual_cam_active and self.vcam:
+                        try:
+                            # Convert BGR to RGB for virtual camera
+                            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                            self.vcam.send(frame_rgb)
+                        except Exception as e:
+                            print(f"Error sending frame to virtual camera: {e}")
+                    
+                    # Convert to PIL format for display
                     cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     img = Image.fromarray(cv2image)
                     imgtk = ImageTk.PhotoImage(image=img)
@@ -294,7 +394,8 @@ class CameraApp:
                     self.video_label.config(image=imgtk)
                     
                     # Update camera name display on video
-                    self.camera_name_display.config(text=f"📷 {self.camera_name}")
+                    vcam_text = " 🌐 STREAMING" if self.virtual_cam_active else ""
+                    self.camera_name_display.config(text=f"📷 {self.camera_name}{vcam_text}")
                 else:
                     # Camera disconnected
                     self.running = False
